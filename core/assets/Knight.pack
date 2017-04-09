@@ -1,0 +1,12 @@
+
+Knight.png
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+kc-spritesheet
+  rotate: false
+  xy: 0, 0
+  size: 1280, 1024
+  orig: 1280, 1024
+  offset: 0, 0
+  index: -1
