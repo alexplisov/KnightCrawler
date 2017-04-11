@@ -1,10 +1,10 @@
 package com.knightcrawler.game.screens;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
@@ -15,38 +15,47 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.StretchViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.knightcrawler.game.KnightCrawler;
 import com.knightcrawler.game.entities.Demon;
 import com.knightcrawler.game.entities.Player;
+import com.knightcrawler.game.scenes.Hud;
 import com.knightcrawler.game.tools.WorldContactListener;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by alexp on 03.04.2017.
  */
 public class PlayScreen implements Screen {
 
+    private boolean debugMode;
+
     // Graphics & rendering
+    private Box2DDebugRenderer box2DDebugRenderer;
+    public static Hud hud;
     private OrthographicCamera gameCamera;
-    private Viewport gameViewport;
+    private OrthogonalTiledMapRenderer orthogonalTiledMapRenderer;
     private TextureAtlas textureAtlas;
     private TmxMapLoader tmxMapLoader;
     private TiledMap tiledMap;
-    private OrthogonalTiledMapRenderer orthogonalTiledMapRenderer;
-    private Box2DDebugRenderer box2DDebugRenderer;
+    private Viewport gameViewport;
 
     // Entities
-    private KnightCrawler game;
-    private World world;
-    private Player player;
     private Demon demon;
+    private KnightCrawler game;
+    private List<Demon> demons;
+    private Player player;
+    private World world;
+
+    private WorldContactListener worldContactListener;
 
     // Screen constructor
     public PlayScreen(KnightCrawler game) {
         this.game = game;
 
-        textureAtlas = new TextureAtlas("Knight.pack");
+        textureAtlas = new TextureAtlas("kc-spritesheet.pack");
 
         gameCamera = new OrthographicCamera(KnightCrawler.GAME_WIDTH, KnightCrawler.GAME_HEIGHT);
         gameViewport = new FitViewport(KnightCrawler.GAME_WIDTH, KnightCrawler.GAME_HEIGHT, gameCamera);
@@ -55,6 +64,7 @@ public class PlayScreen implements Screen {
         tiledMap = tmxMapLoader.load("Level.tmx");
         orthogonalTiledMapRenderer = new OrthogonalTiledMapRenderer(tiledMap);
         gameCamera.position.set(gameViewport.getWorldWidth() / 2, gameViewport.getWorldHeight() / 2, 0);
+        hud = new Hud(game.batch);
 
         world = new World(new Vector2(0,0), true);
         box2DDebugRenderer = new Box2DDebugRenderer();
@@ -77,18 +87,24 @@ public class PlayScreen implements Screen {
             body.createFixture(fixtureDef);
         }
 
-        player = new Player(world, this);
-        demon = new Demon(world);
 
-    }
+        demons = new LinkedList<Demon>();
+        player = new Player(world, this, demons);
+        demon = new Demon(world, this, player);
+        demons.add(demon);
 
-    public TextureAtlas getTextureAtlas() {
-        return textureAtlas;
+        worldContactListener = new WorldContactListener(demons, player);
+        debugMode = false;
     }
 
     // Controlls for PlayScreen
     public void handleInput(float delta) {
-        //TODO: place input logic here
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DEL))
+            debugMode = !debugMode;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.P) && hud.getHealth() < 6)
+            hud.setHealth(hud.getHealth() + 1);
+        if (Gdx.input.isKeyJustPressed(Input.Keys.M) && hud.getHealth() > 0)
+            hud.setHealth(hud.getHealth() - 1);
     }
 
     // Logic updates
@@ -97,10 +113,11 @@ public class PlayScreen implements Screen {
         world.step(1/60f, 6, 2);
         player.update(delta);
         demon.update(delta);
+        hud.update(delta);
         gameCamera.update();
         orthogonalTiledMapRenderer.setView(gameCamera);
 
-        world.setContactListener(new WorldContactListener(player));
+        world.setContactListener(worldContactListener);
     }
 
     @Override
@@ -120,6 +137,8 @@ public class PlayScreen implements Screen {
         // Render game map
         orthogonalTiledMapRenderer.render();
 
+
+
         // Render sprites
         game.batch.setProjectionMatrix(gameCamera.combined);
         game.batch.begin();
@@ -127,8 +146,13 @@ public class PlayScreen implements Screen {
         player.draw(game.batch);
         game.batch.end();
 
+        // Render hud
+        game.batch.setProjectionMatrix(hud.stage.getCamera().combined);
+        hud.stage.draw();
+
         // Debug rendering
-        box2DDebugRenderer.render(world, gameCamera.combined);
+        if (debugMode)
+            box2DDebugRenderer.render(world, gameCamera.combined);
     }
 
     @Override
@@ -159,5 +183,9 @@ public class PlayScreen implements Screen {
         world.dispose();
         box2DDebugRenderer.dispose();
         textureAtlas.dispose();
+    }
+
+    public TextureAtlas getTextureAtlas() {
+        return textureAtlas;
     }
 }

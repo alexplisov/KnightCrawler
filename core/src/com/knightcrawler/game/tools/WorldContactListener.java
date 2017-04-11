@@ -4,16 +4,19 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.physics.box2d.*;
 import com.knightcrawler.game.entities.Demon;
 import com.knightcrawler.game.entities.Player;
-import com.knightcrawler.game.screens.PlayScreen;
+
+import java.util.List;
 
 /**
  * Created by alexp on 09.04.2017.
  */
 public class WorldContactListener implements ContactListener {
 
+    private List<Demon> demons;
     private Player player;
 
-    public WorldContactListener(Player player) {
+    public WorldContactListener(List<Demon> demons, Player player) {
+        this.demons = demons;
         this.player = player;
     }
 
@@ -21,38 +24,106 @@ public class WorldContactListener implements ContactListener {
     public void beginContact(Contact contact) {
         Fixture fixA = contact.getFixtureA();
         Fixture fixB = contact.getFixtureB();
-        if (fixA.getUserData() == "player" || fixB.getUserData() == "player") {
-            Fixture player = fixA.getUserData() == "player" ? fixA : fixB;
-            Fixture object = player == fixA ? fixB : fixA;
-            if (object.getUserData() != null && Demon.class.isAssignableFrom(object.getUserData().getClass())) {
-                ((Demon) object.getUserData()).onCollision();
+
+        // collide demon with player
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") || fixB.getUserData().equals("demon")) {
+                Body demon = fixA.getUserData().equals("demon") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("player") ? fixB : fixA;
+                if (player.getUserData() == "player") {
+                    for (Demon d : demons) {
+                        if (d.getBody() == demon) {
+                            d.setStopped(true);
+                        }
+                    }
+                }
             }
         }
-        if (fixA.getUserData() == "sword" || fixB.getUserData() == "sword") {
-            Fixture sword = fixA.getUserData() == "sword" ? fixA : fixB;
-            Fixture object = sword == fixA ? fixB : fixA;
-            if (object.getUserData() != null && Demon.class.isAssignableFrom(object.getUserData().getClass())) {
-                ((Demon) object.getUserData()).isReach(true);
+
+        // collide demonSensor with player
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demonSensor") || fixB.getUserData().equals("demonSensor")) {
+                Body demonSensor = fixA.getUserData().equals("demonSensor") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("player") ? fixB : fixA;
+                if (player.getUserData() == "player") {
+                    this.player.setReached(true);
+                    for (Demon d : demons) {
+                        if (d.getBody() == demonSensor) {
+                            d.setStopped(true);
+                            d.setFighting(true);
+                            d.stateTimer = 0;
+                        }
+                    }
+                }
             }
         }
+
+        // collide playerSensor with demon
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") || fixB.getUserData().equals("demon")) {
+                Body demon = fixA.getUserData().equals("demon") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("playerSensor") ? fixB : fixA;
+                if (player.getUserData() == "playerSensor") {
+                    for ( Demon d : demons) {
+                        if (d.getBody() == demon) {
+                            d.setReached(true);
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     @Override
     public void endContact(Contact contact) {
         Fixture fixA = contact.getFixtureA();
         Fixture fixB = contact.getFixtureB();
-        if (fixA.getUserData() == "player" || fixB.getUserData() == "player") {
-            Fixture player = fixA.getUserData() == "player" ? fixA : fixB;
-            Fixture object = player == fixA ? fixB : fixA;
-            if (object.getUserData() != null && Demon.class.isAssignableFrom(object.getUserData().getClass())) {
-                ((Demon) object.getUserData()).onRelease();
+
+        // collide demon with player
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") || fixB.getUserData().equals("demon")) {
+                Body demon = fixA.getUserData().equals("demon") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("player") ? fixB : fixA;
+                if (player.getUserData() == "player") {
+                    for (Demon d : demons) {
+                        if (d.getBody() == demon) {
+                            d.setStopped(false);
+                        }
+                    }
+                }
             }
         }
-        if (fixA.getUserData() == "sword" || fixB.getUserData() == "sword") {
-            Fixture sword = fixA.getUserData() == "sword" ? fixA : fixB;
-            Fixture object = sword == fixA ? fixB : fixA;
-            if (object.getUserData() != null && Demon.class.isAssignableFrom(object.getUserData().getClass())) {
-                ((Demon) object.getUserData()).isReach(false);
+
+        // collide demonSensor with player
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demonSensor") || fixB.getUserData().equals("demonSensor")) {
+                Body demonSensor = fixA.getUserData().equals("demonSensor") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("player") ? fixB : fixA;
+                if (player.getUserData() == "player") {
+                    this.player.setReached(false);
+                    for (Demon d : demons) {
+                        if (d.getBody() == demonSensor) {
+                            d.setStopped(false);
+                            d.setFighting(false);
+                        }
+                    }
+                }
+            }
+        }
+
+        // collide playerSensor with demon
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") || fixB.getUserData().equals("demon")) {
+                Body demon = fixA.getUserData().equals("demon") ? fixA.getBody() : fixB.getBody();
+                Fixture player = fixB.getUserData().equals("playerSensor") ? fixB : fixA;
+                if (player.getUserData() == "playerSensor") {
+                    for ( Demon d : demons) {
+                        if (d.getBody() == demon) {
+                            d.setReached(false);
+                        }
+                    }
+                }
             }
         }
     }
@@ -65,5 +136,9 @@ public class WorldContactListener implements ContactListener {
     @Override
     public void postSolve(Contact contact, ContactImpulse impulse) {
 
+    }
+
+    public boolean areColliding(String firstId, String secondId) {
+        return false;
     }
 }
