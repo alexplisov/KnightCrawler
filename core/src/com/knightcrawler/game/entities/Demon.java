@@ -1,20 +1,13 @@
 package com.knightcrawler.game.entities;
-
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.Timer;
 import com.knightcrawler.game.screens.PlayScreen;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * Created by alexp on 05.04.2017.
@@ -26,7 +19,10 @@ public class Demon extends Sprite {
     private boolean isStopped = false;
     private boolean reached;
     private boolean canDamage;
+    private boolean removable;
     private float timer = 0;
+    private int xSpawn;
+    private int ySpawn;
 
     // States
     public enum State { WALKING, FIGHTING, DYING, STANDING};
@@ -45,7 +41,7 @@ public class Demon extends Sprite {
     public World world;
     public Body body;
 
-    public Demon(World world, PlayScreen playScreen, Player player) {
+    public Demon(World world, PlayScreen playScreen, Player player, int x, int y) {
         super(playScreen.getTextureAtlas().findRegion("kc-spritesheet"));
         this.player = player;
 
@@ -55,6 +51,7 @@ public class Demon extends Sprite {
 
         fighting = false;
         canDamage = true;
+        removable = false;
 
         frames = new Array<TextureRegion>();
         createAnimationsFromFrames();
@@ -62,7 +59,7 @@ public class Demon extends Sprite {
         // box2d body
         this.world = world;
         BodyDef bodyDef = new BodyDef();
-        bodyDef.position.set(80, 256);
+        bodyDef.position.set(x, y);
         bodyDef.type = BodyDef.BodyType.DynamicBody;
         body = world.createBody(bodyDef);
 
@@ -99,7 +96,7 @@ public class Demon extends Sprite {
 
         // walking animation
         loadFramesFromSpritesheets(0,4,32,192,32,32);
-        demonWalk = new Animation(0.4f, frames);
+        demonWalk = new Animation(0.1f, frames);
         frames.clear();
 
         // fighting animation
@@ -115,12 +112,17 @@ public class Demon extends Sprite {
 
     public void update(float delta) {
         if (!dying && !isStopped) {
-            body.setLinearVelocity(new Vector2(0, -30));
-            body.applyLinearImpulse(new Vector2(0, -1f), body.getWorldCenter(), true);
+            if (Gdx.input.isKeyPressed(Input.Keys.W) && !Gdx.input.isKeyPressed(Input.Keys.J) && !player.isFighting()) {
+                body.setLinearVelocity(new Vector2(0, -120));
+                body.applyLinearImpulse(new Vector2(0, -1f), body.getWorldCenter(), true);
+            } else {
+                body.setLinearVelocity(new Vector2(0, -60));
+                body.applyLinearImpulse(new Vector2(0, -1f), body.getWorldCenter(), true);
+            }
         } else {
             body.setLinearVelocity(new Vector2(0, 0));
         }
-        if (fighting && player.isReached() && canDamage) {
+        if (fighting && player.isReached() && !player.isFighting() && canDamage) {
             player.setHitted(true);
             canDamage = false;
         }
@@ -155,6 +157,9 @@ public class Demon extends Sprite {
                 break;
             case DYING:
                 region = (TextureRegion) demonDie.getKeyFrame(stateTimer, false);
+                if (demonDie.isAnimationFinished(stateTimer)) {
+                    removable = true;
+                }
                 break;
             default:
                 region = (TextureRegion) demonStand.getKeyFrame(stateTimer, true);
@@ -195,6 +200,7 @@ public class Demon extends Sprite {
     }
 
     public void setDying(boolean dying) {
+        stateTimer = 0;
         this.dying = dying;
     }
 
@@ -204,6 +210,14 @@ public class Demon extends Sprite {
 
     public void setFighting(boolean fighting) {
         this.fighting = fighting;
+    }
+
+    public boolean isRemovable() {
+        return removable;
+    }
+
+    public void setRemovable(boolean removable) {
+        this.removable = removable;
     }
 
 }

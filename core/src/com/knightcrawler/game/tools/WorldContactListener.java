@@ -73,6 +73,20 @@ public class WorldContactListener implements ContactListener {
             }
         }
 
+        // collide demon with demon
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") && fixB.getUserData().equals("demon")) {
+                for ( Demon d : demons) {
+                    if (d.getBody() == fixA.getBody()) {
+                        d.setStopped(true);
+                    }
+                    if (d.getBody() == fixB.getBody()) {
+                        d.setStopped(true);
+                    }
+                }
+            }
+        }
+
     }
 
     @Override
@@ -122,6 +136,20 @@ public class WorldContactListener implements ContactListener {
                         if (d.getBody() == demon) {
                             d.setReached(false);
                         }
+                    }
+                }
+            }
+        }
+
+        // collide demon with demon
+        if (fixA.getUserData() != null && fixB.getUserData() != null) {
+            if (fixA.getUserData().equals("demon") && fixB.getUserData().equals("demon")) {
+                for ( Demon d : demons) {
+                    if (d.getBody() == fixA.getBody()) {
+                        d.setStopped(false);
+                    }
+                    if (d.getBody() == fixB.getBody()) {
+                        d.setStopped(false);
                     }
                 }
             }

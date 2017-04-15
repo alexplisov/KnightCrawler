@@ -22,6 +22,7 @@ public class Player extends Sprite {
     private boolean hitted;
     private boolean fighting;
     private boolean reached;
+    private boolean walkForward;
 
     // States
     public enum State { STANDING, WALKING, SIDEWALKING, FIGHTING, HIT};
@@ -54,6 +55,7 @@ public class Player extends Sprite {
 
         hitted = false;
         fighting = false;
+        walkForward = false;
 
         frames = new Array<TextureRegion>();
         createAnimationsFromFrames();
@@ -127,7 +129,7 @@ public class Player extends Sprite {
         if (!fighting)
             setBounds(0,0,32,32);
             setPosition(body.getPosition().x - getWidth() / 2, body.getPosition().y - getHeight() / 2 + 8);
-        handleInput();
+        handleInput(delta);
         setRegion(getFrame(delta));
     }
 
@@ -167,7 +169,7 @@ public class Player extends Sprite {
         return region;
     }
 
-    private void handleInput() {
+    private void handleInput(float delta) {
         if (Gdx.input.isKeyPressed(Input.Keys.J) && !fighting) {
             body.setLinearVelocity(new Vector2(0, 0));
             fighting = true;
@@ -179,17 +181,12 @@ public class Player extends Sprite {
             }
             stateTimer = 0;
         } else if (!fighting && (Gdx.input.isKeyPressed(Input.Keys.W) ||
-                Gdx.input.isKeyPressed(Input.Keys.S) ||
                 Gdx.input.isKeyPressed(Input.Keys.A) ||
                 Gdx.input.isKeyPressed(Input.Keys.D))) {
             // movement
-            if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-                body.setLinearVelocity(new Vector2(0, 100));
-                body.applyLinearImpulse(new Vector2(0, 4f), body.getWorldCenter(), true);
-            }
-            if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-                body.setLinearVelocity(new Vector2(0, -100));
-                body.applyLinearImpulse(new Vector2(0, -4f), body.getWorldCenter(), true);
+            if (Gdx.input.isKeyPressed(Input.Keys.W) && !hitted) {
+                walkForward = true;
+                body.setLinearVelocity(new Vector2(0, 0));
             }
             if (Gdx.input.isKeyPressed(Input.Keys.A)) {
                 body.setLinearVelocity(new Vector2(-100, 0));
@@ -199,29 +196,10 @@ public class Player extends Sprite {
                 body.setLinearVelocity(new Vector2(100, 0));
                 body.applyLinearImpulse(new Vector2(4f, 0), body.getWorldCenter(), true);
             }
-            if (Gdx.input.isKeyPressed(Input.Keys.W) && Gdx.input.isKeyPressed(Input.Keys.A)) {
-                body.setLinearVelocity(new Vector2(-100, 70));
-                body.applyLinearImpulse(new Vector2(-4f, 4f), body.getWorldCenter(), true);
-            }
-            if (Gdx.input.isKeyPressed(Input.Keys.W) && Gdx.input.isKeyPressed(Input.Keys.D)) {
-                body.setLinearVelocity(new Vector2(100, 70));
-                body.applyLinearImpulse(new Vector2(4f, 4f), body.getWorldCenter(), true);
-            }
-            if (Gdx.input.isKeyPressed(Input.Keys.S) && Gdx.input.isKeyPressed(Input.Keys.A)) {
-                body.setLinearVelocity(new Vector2(-100, -70));
-                body.applyLinearImpulse(new Vector2(-4f, -4f), body.getWorldCenter(), true);
-            }
-            if (Gdx.input.isKeyPressed(Input.Keys.S) && Gdx.input.isKeyPressed(Input.Keys.D)) {
-                body.setLinearVelocity(new Vector2(100, -70));
-                body.applyLinearImpulse(new Vector2(4f, -4f), body.getWorldCenter(), true);
-            }
         } else {
+            walkForward = false;
             body.setLinearVelocity(new Vector2(0, 0));
         }
-    }
-
-    public boolean isFighting() {
-        return fighting;
     }
 
     private State getState() {
@@ -229,13 +207,17 @@ public class Player extends Sprite {
             return State.HIT;
         } else if (fighting && !hitted) {
             return State.FIGHTING;
-        } else if (body.getLinearVelocity().y != 0 && !hitted) {
+        } else if (walkForward) {
             return State.WALKING;
         } else if (body.getLinearVelocity().x != 0 && !hitted) {
             return State.SIDEWALKING;
         } else {
             return State.STANDING;
         }
+    }
+
+    public boolean isFighting() {
+        return fighting;
     }
 
     public void setReached(boolean reached) {

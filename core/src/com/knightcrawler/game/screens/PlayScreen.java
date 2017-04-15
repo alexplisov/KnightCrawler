@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
@@ -22,6 +23,7 @@ import com.knightcrawler.game.entities.Player;
 import com.knightcrawler.game.scenes.Hud;
 import com.knightcrawler.game.tools.WorldContactListener;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -31,6 +33,9 @@ import java.util.List;
 public class PlayScreen implements Screen {
 
     private boolean debugMode;
+    private boolean timeHasCome;
+    private int yOffset;
+    private float timer;
 
     // Graphics & rendering
     private Box2DDebugRenderer box2DDebugRenderer;
@@ -38,6 +43,8 @@ public class PlayScreen implements Screen {
     private OrthographicCamera gameCamera;
     private OrthogonalTiledMapRenderer orthogonalTiledMapRenderer;
     private TextureAtlas textureAtlas;
+    private Texture world1;
+    private Texture world2;
     private TmxMapLoader tmxMapLoader;
     private TiledMap tiledMap;
     private Viewport gameViewport;
@@ -56,12 +63,15 @@ public class PlayScreen implements Screen {
         this.game = game;
 
         textureAtlas = new TextureAtlas("kc-spritesheet.pack");
+        world1 = new Texture("Level.png");
+        world2 = world1;
 
         gameCamera = new OrthographicCamera(KnightCrawler.GAME_WIDTH, KnightCrawler.GAME_HEIGHT);
         gameViewport = new FitViewport(KnightCrawler.GAME_WIDTH, KnightCrawler.GAME_HEIGHT, gameCamera);
 
         tmxMapLoader = new TmxMapLoader();
         tiledMap = tmxMapLoader.load("Level.tmx");
+
         orthogonalTiledMapRenderer = new OrthogonalTiledMapRenderer(tiledMap);
         gameCamera.position.set(gameViewport.getWorldWidth() / 2, gameViewport.getWorldHeight() / 2, 0);
         hud = new Hud(game.batch);
@@ -74,7 +84,7 @@ public class PlayScreen implements Screen {
         FixtureDef fixtureDef = new FixtureDef();
         Body body;
 
-        for(MapObject object : tiledMap.getLayers().get(1).getObjects().getByType(RectangleMapObject.class)) {
+        for(MapObject object : tiledMap.getLayers().get(0).getObjects().getByType(RectangleMapObject.class)) {
             Rectangle rectangle = ((RectangleMapObject)object).getRectangle();
 
             bodyDef.type = BodyDef.BodyType.StaticBody;
@@ -87,36 +97,72 @@ public class PlayScreen implements Screen {
             body.createFixture(fixtureDef);
         }
 
-
         demons = new LinkedList<Demon>();
         player = new Player(world, this, demons);
-        demon = new Demon(world, this, player);
-        demons.add(demon);
 
         worldContactListener = new WorldContactListener(demons, player);
         debugMode = false;
+        timeHasCome = true;
+        yOffset = 0;
+        timer = 0;
     }
 
-    // Controlls for PlayScreen
+    // Controls for PlayScreen
     public void handleInput(float delta) {
+        if(!Gdx.input.isKeyPressed(Input.Keys.J) && Gdx.input.isKeyPressed(Input.Keys.W) && !player.isFighting()) {
+            hud.setScore(hud.getScore() + 1);
+
+            if (yOffset > -KnightCrawler.GAME_HEIGHT) {
+                yOffset -= 100 * delta;
+            } else {
+                yOffset = 0;
+            }
+        }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.DEL))
             debugMode = !debugMode;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P) && hud.getHealth() < 6)
-            hud.setHealth(hud.getHealth() + 1);
-        if (Gdx.input.isKeyJustPressed(Input.Keys.M) && hud.getHealth() > 0)
-            hud.setHealth(hud.getHealth() - 1);
+        if (debugMode) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.P) && hud.getHealth() < 6)
+                hud.setHealth(hud.getHealth() + 1);
+            if (Gdx.input.isKeyJustPressed(Input.Keys.M) && hud.getHealth() > 0)
+                hud.setHealth(hud.getHealth() - 1);
+        }
     }
 
     // Logic updates
     public void update(float delta) {
+        if (hud.getHealth() <= 0) {
+            game.setScreen(new GameoverScreen(game));
+        }
+
         handleInput(delta);
+
+        if (timeHasCome) {
+            timeHasCome = false;
+            demons.add(new Demon(world, this, player, 16 + 32 * (int)(1 + Math.random() * 3), 320));
+            timer = 0;
+        } else {
+            if ( (timer += delta) >= (int) (1 + Math.random() * 5)) {
+                timeHasCome = true;
+            }
+        }
+
         world.step(1/60f, 6, 2);
         player.update(delta);
-        demon.update(delta);
+        List<Demon> delDemonsList = new ArrayList<Demon>();
+        for (Demon d : demons) {
+            d.update(delta);
+            if (d.getBody().getPosition().y < -32) {
+                d.setRemovable(true);
+            }
+            if (d.isRemovable()) {
+                delDemonsList.add(d);
+            }
+        }
+        demons.removeAll(delDemonsList);
         hud.update(delta);
         gameCamera.update();
         orthogonalTiledMapRenderer.setView(gameCamera);
-
         world.setContactListener(worldContactListener);
     }
 
@@ -137,12 +183,16 @@ public class PlayScreen implements Screen {
         // Render game map
         orthogonalTiledMapRenderer.render();
 
-
-
         // Render sprites
         game.batch.setProjectionMatrix(gameCamera.combined);
         game.batch.begin();
-        demon.draw(game.batch);
+        game.batch.draw(world1, 0, yOffset);
+        game.batch.draw(world2, 0, yOffset + KnightCrawler.GAME_HEIGHT);
+        for (Demon d : demons) {
+            if (!d.isRemovable()) {
+                d.draw(game.batch);
+            }
+        }
         player.draw(game.batch);
         game.batch.end();
 
