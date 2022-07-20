@@ -11,7 +11,6 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.TimeUtils;
 import com.knightcrawler.game.screens.MenuScreen;
 import com.knightcrawler.game.screens.PlayScreen;
-import org.lwjgl.util.Rectangle;
 
 import java.util.Iterator;
 
